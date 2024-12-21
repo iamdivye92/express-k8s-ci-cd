@@ -9,7 +9,7 @@ data "aws_availability_zones" "available" {
 
 # Data Source: Fetch Existing IAM Role ARN
 data "aws_iam_role" "eks_custom" {
-  name = "eks-cluster-role" # Replace with the exact IAM role name
+  name = "eks-full-access-role" # Replace with the exact IAM role name
 }
 
 # Create VPC

@@ -70,12 +70,7 @@ jobs:
         aws-region: ap-south-1
 
     # Step 9: Handle Deployment and Service Recreation
-    - name: Delete Deployment and Service
-      run: |
-        echo "Deleting existing Deployment and Service if they exist..."
-        kubectl delete deployment nodeapp-deployment || echo "Deployment not found"
-        kubectl delete service nodeapp-service || echo "Service not found"
-
+    
     - name: Apply Kubernetes Manifests
       env:
         GIT_BRANCH: ${{ github.ref_name }}
@@ -88,14 +83,7 @@ jobs:
         # Update kubeconfig
         aws eks update-kubeconfig --name my-eks-cluster --region ap-south-1
 
-            # Step 9: Handle Deployment and Service Recreation
-    - name: Delete Deployment and Service
-      run: |
-        echo "Deleting existing Deployment and Service if they exist..."
-        kubectl delete deployment nodeapp-deployment || echo "Deployment not found"
-        kubectl delete service nodeapp-service || echo "Service not found"
-
-
+        # Step 9: Handle Deployment and Service 
 
         # Apply manifests
         echo "Recreating Deployment and Service..."

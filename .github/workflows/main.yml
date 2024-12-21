@@ -18,14 +18,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    # Step 2: Cache Node.js dependencies
-    - name: Cache Node.js modules
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+    # # Step 2: Cache Node.js dependencies
+    # - name: Cache Node.js modules
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: ~/.npm
+    #     key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-node-
 
     # Step 3: Setup Node.js environment
     - name: Setup Node.js

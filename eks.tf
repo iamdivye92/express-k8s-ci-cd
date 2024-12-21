@@ -7,12 +7,7 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Data Source: Fetch Existing IAM Role ARN
-data "aws_iam_role" "eks_custom" {
-  name = "eks-full-access-role" # Replace with the exact IAM role name
-}
-
-# Create VPC
+# Create VPC for EKS
 resource "aws_vpc" "eks_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -23,7 +18,7 @@ resource "aws_vpc" "eks_vpc" {
   }
 }
 
-# Create Internet Gateway
+# Create Internet Gateway for the VPC
 resource "aws_internet_gateway" "eks_igw" {
   vpc_id = aws_vpc.eks_vpc.id
 
@@ -46,7 +41,7 @@ resource "aws_route_table" "eks_route_table" {
   }
 }
 
-# Create Subnets
+# Create Subnets for the VPC
 resource "aws_subnet" "eks_subnets" {
   count                   = 2
   vpc_id                  = aws_vpc.eks_vpc.id
@@ -59,17 +54,17 @@ resource "aws_subnet" "eks_subnets" {
   }
 }
 
-# Associate Subnets with Route Table
+# Associate Subnets with the Route Table
 resource "aws_route_table_association" "eks_route_table_assoc" {
   count          = length(aws_subnet.eks_subnets)
   subnet_id      = aws_subnet.eks_subnets[count.index].id
   route_table_id = aws_route_table.eks_route_table.id
 }
 
-# Create EKS Cluster
+# Create the EKS Cluster
 resource "aws_eks_cluster" "eks_cluster" {
   name     = "my-eks-cluster"
-  role_arn = data.aws_iam_role.eks_custom.arn
+  role_arn = "arn:aws:iam::975049911073:role/eks-cluster-role" # Directly use the IAM role ARN for root user
 
   vpc_config {
     subnet_ids = aws_subnet.eks_subnets[*].id

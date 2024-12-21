@@ -3,7 +3,7 @@ name: Test, Build, Push, and Deploy to EKS
 on:
   push:
     branches:
-      - test
+      - main
 
 jobs:
   test-build-push-deploy:

@@ -84,7 +84,7 @@ jobs:
         aws eks update-kubeconfig --name my-eks-cluster --region ap-south-1
 
         # Update image in deployment.yaml and apply
-        sed -i "s|image: .*|image: iamdivye/express-k8s:${IMAGE_TAG}|" deployment.yaml
+        
         kubectl apply -f deployment.yaml
 
         # Apply the service manifest

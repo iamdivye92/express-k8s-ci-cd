@@ -61,7 +61,7 @@ jobs:
         SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
         docker push iamdivye/express-k8s:${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
 
-# Step 8: Configure AWS credentials
+    # Step 8: Configure AWS credentials
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -69,8 +69,7 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ap-south-1
 
-
- # Step 9: Deploy to EKS
+    # Step 9: Deploy to EKS
     - name: Deploy to EKS
       env:
         GIT_BRANCH: ${{ github.ref_name }}
@@ -83,12 +82,18 @@ jobs:
         # Update kubeconfig
         aws eks update-kubeconfig --name my-eks-cluster --region ap-south-1
 
-        # Update image in deployment.yaml and apply
-        
+        # Apply manifests
         kubectl apply -f deployment.yaml
-
-        # Apply the service manifest
         kubectl apply -f service.yaml
 
         # Ensure rollout success
-        kubectl rollout status deployment/nodeapp-deployment
+        echo "Waiting for deployment rollout..."
+        kubectl rollout status deployment/nodeapp-deployment || (
+          echo "Rollout failed. Deleting pods for manual recovery..."
+          PODS=$(kubectl get pods --selector=app=nodeapp -o jsonpath='{.items[*].metadata.name}')
+          for POD in $PODS; do
+            echo "Deleting pod $POD"
+            kubectl delete pod $POD --grace-period=0 --force
+          done
+          exit 1
+        )

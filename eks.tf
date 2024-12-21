@@ -9,39 +9,30 @@ data "aws_availability_zones" "available" {
 
 # Data Source: Fetch Existing IAM Role ARN
 data "aws_iam_role" "eks_custom" {
-  name = "existing-eks-role-name" # Replace with your existing IAM Role name
+  name = "eks-cluster-role" # Replace with the exact IAM role name
 }
 
 # Create VPC
 resource "aws_vpc" "eks_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
   tags = {
     Name = "eks-vpc"
-  }
-}
-
-# Create Subnets
-resource "aws_subnet" "eks_subnets" {
-  count             = 2
-  vpc_id            = aws_vpc.eks_vpc.id
-  cidr_block        = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "eks-subnet-${count.index}"
   }
 }
 
 # Create Internet Gateway
 resource "aws_internet_gateway" "eks_igw" {
   vpc_id = aws_vpc.eks_vpc.id
+
   tags = {
     Name = "eks-igw"
   }
 }
 
-# Create Route Table
+# Create Route Table with Internet Gateway
 resource "aws_route_table" "eks_route_table" {
   vpc_id = aws_vpc.eks_vpc.id
 
@@ -55,6 +46,19 @@ resource "aws_route_table" "eks_route_table" {
   }
 }
 
+# Create Subnets
+resource "aws_subnet" "eks_subnets" {
+  count                   = 2
+  vpc_id                  = aws_vpc.eks_vpc.id
+  cidr_block              = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "eks-subnet-${count.index}"
+  }
+}
+
 # Associate Subnets with Route Table
 resource "aws_route_table_association" "eks_route_table_assoc" {
   count          = length(aws_subnet.eks_subnets)
@@ -65,7 +69,7 @@ resource "aws_route_table_association" "eks_route_table_assoc" {
 # Create EKS Cluster
 resource "aws_eks_cluster" "eks_cluster" {
   name     = "my-eks-cluster"
-  role_arn = data.aws_iam_role.eks_role.arn
+  role_arn = data.aws_iam_role.eks_custom.arn
 
   vpc_config {
     subnet_ids = aws_subnet.eks_subnets[*].id

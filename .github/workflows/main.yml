@@ -66,4 +66,28 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-       
+
+
+
+ # Step 9: Deploy to EKS
+    - name: Deploy to EKS
+      env:
+        GIT_BRANCH: ${{ github.ref_name }}
+        SHORT_SHA: ${{ github.sha }}
+      run: |
+        SHORT_SHA=${SHORT_SHA:0:7}
+        SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
+        IMAGE_TAG=${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
+
+        # Update kubeconfig
+        aws eks update-kubeconfig --name my-eks-cluster --region ap-south-1
+
+        # Update image in deployment.yaml and apply
+        sed -i "s|image: .*|image: iamdivye/express-k8s:${IMAGE_TAG}|" deployment.yaml
+        kubectl apply -f deployment.yaml
+
+        # Apply the service manifest
+        kubectl apply -f service.yaml
+
+        # Ensure rollout success
+        kubectl rollout status deployment/nodeapp-deployment

@@ -18,36 +18,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-   
-    # Step 3: Setup Node.js environment
+    # Step 2: Setup Node.js environment
     - name: Setup Node.js
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
 
-    # Step 4: Install dependencies
+    # Step 3: Install dependencies
     - name: Install dependencies
       run: npm ci
 
-    # Step 5: Cache Docker layers
-    - name: Cache Docker layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-docker-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-docker-
-
-    # Step 6: Build Docker image
+    # Step 4: Build Docker image
     - name: Build Docker image
       run: |
-        docker build --cache-from=type=local,src=/tmp/.buildx-cache \
-                     --cache-to=type=local,dest=/tmp/.buildx-cache \
-                     -t iamdivye/express-k8s:latest .
+        docker build -t iamdivye/express-k8s:latest .
 
-    # Step 7: Tag Docker image with branch, short hash, and timestamp
-    - name: Tag Docker image with short hash and timestamp
+    # Step 5: Tag Docker image
+    - name: Tag Docker image with branch, short hash, and timestamp
       env:
         GIT_BRANCH: ${{ github.ref_name }}
         SHORT_SHA: ${{ github.sha }}
@@ -56,7 +43,7 @@ jobs:
         SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
         docker tag iamdivye/express-k8s:latest iamdivye/express-k8s:${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
 
-    # Step 8: Login to Docker Hub
+    # Step 6: Login to Docker Hub
     - name: Login to Docker Hub
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -64,7 +51,7 @@ jobs:
       run: |
         echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
-    # Step 9: Push Docker image to Docker Hub
+    # Step 7: Push Docker image
     - name: Push Docker image to Docker Hub
       env:
         GIT_BRANCH: ${{ github.ref_name }}
@@ -74,33 +61,9 @@ jobs:
         SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
         docker push iamdivye/express-k8s:${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
 
-    # Step 10: Configure AWS credentials
+    # Step 8: Configure AWS credentials
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ap-south-1 # Update to your AWS region
-
-    # Step 11: Apply Kubernetes Manifests
-    - name: Deploy to EKS
-      env:
-        GIT_BRANCH: ${{ github.ref_name }}
-        SHORT_SHA: ${{ github.sha }}
-      run: |
-        SHORT_SHA=${SHORT_SHA:0:7}
-        SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
-        IMAGE_TAG=${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
-
-        # Update kubeconfig to interact with EKS
-        aws eks update-kubeconfig --name my-eks-cluster --region ap-south-1
-
-        # Apply the deployment manifest
-        sed -i "s|image: .*|image: iamdivye/express-k8s:${IMAGE_TAG}|" deployment.yaml
-        kubectl apply -f deployment.yaml
-
-        # Apply the service manifest
-        kubectl apply -f service.yaml
-
-        # Ensure deployment rollout success
-        kubectl rollout status deployment/nodeapp-deployment
+       

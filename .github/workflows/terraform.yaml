@@ -1,42 +1,81 @@
-name: Terraform EKS Infrastructure
+provider "aws" {
+  region = "ap-south-1" # Ensure the region is correct
+}
 
-on:
-  workflow_dispatch: # Manually trigger the workflow
+# Fetch Available Availability Zones
+data "aws_availability_zones" "available" {
+  state = "available"
+}
 
-jobs:
-  terraform:
-    runs-on: ubuntu-latest
+# Data Source: Fetch Existing IAM Role ARN
+data "aws_iam_role" "eks_custom" {
+  name = "eks-cluster-role" # Replace with the exact IAM role name
+}
 
-    steps:
-    # Step 1: Checkout the Code
-    - name: Checkout Code
-      uses: actions/checkout@v2
+# Create VPC
+resource "aws_vpc" "eks_vpc" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
-    # Step 2: Configure AWS CLI
-    - name: Configure AWS CLI
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: |
-        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-        aws configure set default.region ap-south-1
-        aws sts get-caller-identity # Verify credentials
+  tags = {
+    Name = "eks-vpc"
+  }
+}
 
-    # Step 3: Set Up Terraform
-    - name: Set Up Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.4.6 # Specify your desired version
+# Create Internet Gateway
+resource "aws_internet_gateway" "eks_igw" {
+  vpc_id = aws_vpc.eks_vpc.id
 
-    # Step 4: Initialize Terraform
-    - name: Terraform Init
-      run: terraform init
+  tags = {
+    Name = "eks-igw"
+  }
+}
 
-    # Step 5: Terraform Plan
-    - name: Terraform Plan
-      run: terraform plan -out=tfplan
+# Create Route Table with Internet Gateway
+resource "aws_route_table" "eks_route_table" {
+  vpc_id = aws_vpc.eks_vpc.id
 
-    # Step 6: Terraform Apply
-    - name: Terraform Apply
-      run: terraform apply -auto-approve tfplan
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.eks_igw.id
+  }
+
+  tags = {
+    Name = "eks-route-table"
+  }
+}
+
+# Create Subnets
+resource "aws_subnet" "eks_subnets" {
+  count                   = 2
+  vpc_id                  = aws_vpc.eks_vpc.id
+  cidr_block              = cidrsubnet(aws_vpc.eks_vpc.cidr_block, 8, count.index)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "eks-subnet-${count.index}"
+  }
+}
+
+# Associate Subnets with Route Table
+resource "aws_route_table_association" "eks_route_table_assoc" {
+  count          = length(aws_subnet.eks_subnets)
+  subnet_id      = aws_subnet.eks_subnets[count.index].id
+  route_table_id = aws_route_table.eks_route_table.id
+}
+
+# Create EKS Cluster
+resource "aws_eks_cluster" "eks_cluster" {
+  name     = "my-eks-cluster"
+  role_arn = data.aws_iam_role.eks_custom.arn
+
+  vpc_config {
+    subnet_ids = aws_subnet.eks_subnets[*].id
+  }
+
+  tags = {
+    Name = "eks-cluster"
+  }
+}

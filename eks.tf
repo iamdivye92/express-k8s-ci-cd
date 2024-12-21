@@ -1,9 +1,14 @@
 provider "aws" {
-  region = "ap-south-1"
+  region = "ap-south-1" # Ensure the region is correct
+}
+
+# Fetch Available Availability Zones
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
 # Data Source: Fetch Existing IAM Role ARN
-data "aws_iam_role" "eks_role" {
+data "aws_iam_role" "eks_custom" {
   name = "existing-eks-role-name" # Replace with your existing IAM Role name
 }
 

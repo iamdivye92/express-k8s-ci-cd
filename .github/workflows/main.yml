@@ -69,8 +69,14 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ap-south-1
 
-    # Step 9: Deploy to EKS
-    - name: Deploy to EKS
+    # Step 9: Handle Deployment and Service Recreation
+    - name: Delete Deployment and Service
+      run: |
+        echo "Deleting existing Deployment and Service if they exist..."
+        kubectl delete deployment nodeapp-deployment || echo "Deployment not found"
+        kubectl delete service nodeapp-service || echo "Service not found"
+
+    - name: Apply Kubernetes Manifests
       env:
         GIT_BRANCH: ${{ github.ref_name }}
         SHORT_SHA: ${{ github.sha }}
@@ -82,18 +88,14 @@ jobs:
         # Update kubeconfig
         aws eks update-kubeconfig --name my-eks-cluster --region ap-south-1
 
+        # Update image in deployment.yaml
+        sed -i "s|image: .*|image: iamdivye/express-k8s:${IMAGE_TAG}|" deployment.yaml
+
         # Apply manifests
+        echo "Recreating Deployment and Service..."
         kubectl apply -f deployment.yaml
         kubectl apply -f service.yaml
 
         # Ensure rollout success
-        echo "Waiting for deployment rollout..."
-        kubectl rollout status deployment/nodeapp-deployment || (
-          echo "Rollout failed. Deleting pods for manual recovery..."
-          PODS=$(kubectl get pods --selector=app=nodeapp -o jsonpath='{.items[*].metadata.name}')
-          for POD in $PODS; do
-            echo "Deleting pod $POD"
-            kubectl delete pod $POD --grace-period=0 --force
-          done
-          exit 1
-        )
+        echo "Waiting for rollout to complete..."
+        kubectl rollout status deployment/nodeapp-deployment

@@ -1,0 +1,42 @@
+name: Terraform EKS Infrastructure
+
+on:
+  workflow_dispatch: # Manually trigger the workflow
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the Code
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    # Step 2: Configure AWS CLI
+    - name: Configure AWS CLI
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+        aws configure set default.region ap-south-1
+        aws sts get-caller-identity # Verify credentials
+
+    # Step 3: Set Up Terraform
+    - name: Set Up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.4.6 # Specify your desired version
+
+    # Step 4: Initialize Terraform
+    - name: Terraform Init
+      run: terraform init
+
+    # Step 5: Terraform Plan
+    - name: Terraform Plan
+      run: terraform plan -out=tfplan
+
+    # Step 6: Terraform Apply
+    - name: Terraform Apply
+      run: terraform apply -auto-approve tfplan

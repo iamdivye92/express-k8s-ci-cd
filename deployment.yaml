@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: nodeserver
-        image: iamdivye/node-app:latest
+        image: iamdivye/express-k8s:tagname:latest
         ports:
         - containerPort: 3000

@@ -1,12 +1,12 @@
-name: Test, Build, Tag, and Push Docker Image
+name: Test, Build, Push, and Deploy to EKS
 
 on:
   push:
     branches:
-      - test
+      - main
 
 jobs:
-  test-build-push:
+  test-build-push-deploy:
     runs-on: ubuntu-latest
 
     strategy:
@@ -14,25 +14,31 @@ jobs:
         node-version: [16.x]
 
     steps:
+    # Step 1: Checkout the code
     - name: Checkout code
       uses: actions/checkout@v2
 
+    # Step 2: Setup Node.js environment
     - name: Setup Node.js
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
+    # Step 3: Install dependencies
     - name: Install dependencies
       run: npm ci
 
+    # Step 4: Run tests
     - name: Run tests
       run: npm test
 
+    # Step 5: Build Docker image
     - name: Build Docker image
       run: |
         docker build -t iamdivye/express-k8s:latest .
 
+    # Step 6: Tag Docker image with branch, short hash, and timestamp
     - name: Tag Docker image with short hash and timestamp
       env:
         GIT_BRANCH: ${{ github.ref_name }}
@@ -42,6 +48,7 @@ jobs:
         SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
         docker tag iamdivye/express-k8s:latest iamdivye/express-k8s:${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
 
+    # Step 7: Login to Docker Hub
     - name: Login to Docker Hub
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -49,6 +56,7 @@ jobs:
       run: |
         echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
+    # Step 8: Push Docker image to Docker Hub
     - name: Push Docker image to Docker Hub
       env:
         GIT_BRANCH: ${{ github.ref_name }}
@@ -57,3 +65,33 @@ jobs:
         SHORT_SHA=${SHORT_SHA:0:7}
         SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
         docker push iamdivye/express-k8s:${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
+
+    # Step 9: Configure AWS credentials
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2 # Update to your AWS region
+
+    # Step 10: Update Kubernetes Deployment and Service
+    - name: Deploy to EKS
+      env:
+        GIT_BRANCH: ${{ github.ref_name }}
+        SHORT_SHA: ${{ github.sha }}
+      run: |
+        SHORT_SHA=${SHORT_SHA:0:7}
+        SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
+        IMAGE_TAG=${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
+
+        # Update kubeconfig to interact with EKS
+        aws eks update-kubeconfig --name eks-cluster--ap-south-1
+
+        # Update Deployment image
+        kubectl set image -f deployment.yaml nodeserver=iamdivye/express-k8s:${IMAGE_TAG}
+
+        # Apply Service if not already created
+        kubectl apply -f service.yaml
+
+        # Ensure the Deployment rollout is successful
+        kubectl rollout status deployment/nodeapp-deployment

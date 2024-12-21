@@ -1,9 +1,9 @@
-name: Test, Build, and Push Docker Image
+name: Test, Build, Tag, and Push Docker Image
 
 on:
   push:
     branches:
-      - main
+      - test
 
 jobs:
   test-build-push:
@@ -17,7 +17,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node-version }}
@@ -32,9 +32,28 @@ jobs:
     - name: Build Docker image
       run: |
         docker build -t iamdivye/express-k8s:latest .
-        
+
+    - name: Tag Docker image with short hash and timestamp
+      env:
+        GIT_BRANCH: ${{ github.ref_name }}
+        SHORT_SHA: ${{ github.sha }}
+      run: |
+        SHORT_SHA=${SHORT_SHA:0:7}
+        SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
+        docker tag iamdivye/express-k8s:latest iamdivye/express-k8s:${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
+
     - name: Login to Docker Hub
-      run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
     - name: Push Docker image to Docker Hub
-      run: docker push iamdivye/express-js:latest
+      env:
+        GIT_BRANCH: ${{ github.ref_name }}
+        SHORT_SHA: ${{ github.sha }}
+      run: |
+        SHORT_SHA=${SHORT_SHA:0:7}
+        SHORT_TIMESTAMP=$(date +%y%m%d%H%M)
+        docker push iamdivye/express-k8s:${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}

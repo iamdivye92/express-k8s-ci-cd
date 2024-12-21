@@ -85,7 +85,7 @@ jobs:
         IMAGE_TAG=${GIT_BRANCH}-${SHORT_SHA}-${SHORT_TIMESTAMP}
 
         # Update kubeconfig to interact with EKS
-        aws eks update-kubeconfig --name eks-cluster--ap-south-1
+        aws eks update-kubeconfig --name my-eks-cluster--ap-south-1
 
         # Update Deployment image
         kubectl set image -f deployment.yaml nodeserver=iamdivye/express-k8s:${IMAGE_TAG}

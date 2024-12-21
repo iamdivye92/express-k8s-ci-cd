@@ -88,8 +88,14 @@ jobs:
         # Update kubeconfig
         aws eks update-kubeconfig --name my-eks-cluster --region ap-south-1
 
-        # Update image in deployment.yaml
-        sed -i "s|image: .*|image: iamdivye/express-k8s:${IMAGE_TAG}|" deployment.yaml
+            # Step 9: Handle Deployment and Service Recreation
+    - name: Delete Deployment and Service
+      run: |
+        echo "Deleting existing Deployment and Service if they exist..."
+        kubectl delete deployment nodeapp-deployment || echo "Deployment not found"
+        kubectl delete service nodeapp-service || echo "Service not found"
+
+
 
         # Apply manifests
         echo "Recreating Deployment and Service..."

@@ -1,0 +1,26 @@
+{
+  "name": "sample-node-js-cicd",
+  "version": "1.0.0",
+  "description": "A sample Node.js project with CI/CD pipeline using AVA",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node app.js",
+    "test": "ava"
+  },
+  "keywords": [
+    "nodejs",
+    "ci-cd",
+    "express",
+    "ava"
+  ],
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "ava": "^5.3.1",
+    "supertest": "^6.3.3"
+  }
+}
